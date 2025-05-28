@@ -1,65 +1,56 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-# === Base Parameters ===
-Tf_base = 8  # Fast mover entry time
+# === Simulation Parameters ===
+Tf_base = 8  # Fast mover entry time (months)
 fast_init_investment = 10000
 slow_init_investment = 10000
-M = 1000  # Market size
-a = 0.5  # Reputation growth rate
-epsilon = 1e-3
-x0 = 0.5  # Initial proportion of fast mover
-entry_advantages = list(range(0, 25, 3))  # Ts - Tf
-simulation_months_list = [6, 12, 36]  # Durations to simulate
+a = 0.8  # Reputation growth rate
+M = 1000  # Total market size
+dt = 0.05  # Time step in months
+epsilon = 1e-3  # Boundary constraint for replicator dynamics
 
-# === Replicator dynamic function ===
-def replicator_dx(x, t_month, Tf, Ts, fast_I, slow_I, a):
-    Rf = fast_I * np.exp(a * x * (t_month - Tf)) / (1 + 0.05 * (t_month - Tf))
-    Rs = slow_I * np.exp(a * (1 - x) * (t_month - Ts)) / (1 + 0.05 * (t_month - Ts))
+# Simulate for different total durations
+simulation_months_list = [1, 6, 18]
+entry_advantages = list(range(0, 19, 3))  # [0, 3, ..., 18]
+
+# === Define replicator dynamic function ===
+def replicator_dx(x, t_month, Tf, Ts):
+    Rf = fast_init_investment * np.exp(a * x * (t_month - Tf))
+    Rs = slow_init_investment * np.exp(a * (1 - x) * (t_month - Ts))
     Pf = Rf / (Rf + Rs)
     Ff = Pf * M
     Fs = (1 - Pf) * M
     delta_f = Ff - Fs
     return x * (1 - x) * delta_f
 
-# === Plotting ===
+# === Run simulations ===
 plt.figure(figsize=(10, 6))
-styles = ['-', '--', '-.']
-markers = ['o', 's', 'D']
-
-for i, sim_months in enumerate(simulation_months_list):
-    dt = 0.05
-    timesteps = int(sim_months / dt)
+for duration in simulation_months_list:
+    timesteps = int(duration / dt)
     final_props = []
 
-    print(f"\nSimulation duration: {sim_months} months")
-
-    for adv in entry_advantages:
+    for advantage in entry_advantages:
         Tf = Tf_base
-        Ts = Tf_base + adv
-        x = x0
-        x_vals = []  # Track x over time
+        Ts = Tf_base + advantage
+        x = 0.2
 
         for t in range(timesteps):
             t_month = t * dt
-            dx = replicator_dx(x, t_month, Tf, Ts, fast_init_investment, slow_init_investment, a)
+            dx = replicator_dx(x, t_month, Tf, Ts)
             x += dx * dt
             x = np.clip(x, epsilon, 1 - epsilon)
-            x_vals.append(x)
 
         final_props.append(x)
-        print(f"  Entry advantage = {adv} months, Final x = {x:.4f}, Max x = {max(x_vals):.4f}, Min x = {min(x_vals):.4f}")
 
-    plt.plot(entry_advantages, final_props,
-             marker=markers[i], linestyle=styles[i], linewidth=2,
-             label=f"{sim_months} months")
+    plt.plot(entry_advantages, final_props, marker='o', label=f'{duration}-Month Simulation')
 
-# === Final plot formatting ===
+# === Plot Formatting ===
 plt.axhline(0.5, color='gray', linestyle='--', label='Neutral Share')
-plt.xlabel("Entry Advantage (Ts − Tf) in Months")
+plt.xlabel("Entry Advantage (months): Slow − Fast")
 plt.ylabel("Final Proportion of Fast Mover")
-plt.title("Final Market Share vs. Entry Advantage (a = 0.8)")
-plt.legend(title="Simulation Duration")
+plt.title("Impact of Entry Advantage on Market Share (Varying Simulation Durations)")
+plt.legend()
 plt.grid(True)
 plt.xticks(entry_advantages)
 plt.tight_layout()
